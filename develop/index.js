@@ -56,7 +56,7 @@ function MainMenu() {
                 prompteUpdateEmployeeManager();
                 break;
             case "View All Roles":
-                showData("Roles View", "View All Roles");
+                viewRoles();
                 break;
             case "Add Role":
                 promptAddRole();
@@ -65,7 +65,7 @@ function MainMenu() {
                 promptRemoveRole();
                 break;
             case "View All Departments":
-                showData("All Departments", "View All Departments");
+                viewDepartments();
                 break;
             case "Add Department":
                 promptAddDepartment();
@@ -119,7 +119,7 @@ var showAllEmployees = function() {
         }
             showLogo();
             showHeader("All Employees View");
-            console.log(" ID    First Name      Last Name       Role                 Department           Manager");
+            console.log(" ID  | First Name    | Last Name     | Role               | Department         | Manager");
             startData();
             for(var i = 0; i < result.length; i++) {
                 var id = result[i].ID.toString().padEnd(5);
@@ -146,7 +146,7 @@ var showEmployeesByDepartment = function() {
         }
             showLogo();
             showHeader("All Employees View");
-            console.log(" ID    First Name      Last Name       Role                 Department           Manager");
+            console.log(" ID  | First Name    | Last Name     | Role               | Department         | Manager");
             startData();
             for(var i = 0; i < result.length; i++) {
                 var id = result[i].ID.toString().padEnd(5);
@@ -173,7 +173,7 @@ var showEmployeesByManager = function() {
         }
             showLogo();
             showHeader("All Employees View");
-            console.log(" ID    First Name      Last Name       Role                 Department           Manager");
+            console.log(" ID  | First Name    | Last Name     | Role               | Department         | Manager");
             startData();
             for(var i = 0; i < result.length; i++) {
                 var id = result[i].ID.toString().padEnd(5);
@@ -252,8 +252,6 @@ var getRoles = function() {
         });
     });
 };
-
-
 var getEmployees = function() {
     return new Promise((resolve, reject) => {
         const sql = "SELECT id, first_name, last_name FROM employees ORDER BY id ASC";
@@ -311,7 +309,313 @@ async function promptAddEmployee() {
             choices: _employees,
         }
     ]);
+    //Now we have all the answers, let's add the employee
+    return new Promise((resolve, reject) => {
+        const sql = "insert into employees (first_name, last_name, role_id, manager_id) values (?, ?, ?, ?)";
+        const params = [answers.firstName, answers.lastName, answers.role, answers.manager];
+        db.query(sql, params, (err, result) => {
+            if (err) {
+                console.error(err);
+                reject(err);
+            } else {
+                console.log("Employee added successfully!");
+                resolve(result);
+                MainMenu();
+            }
+        });
+    });
+    
 }
+
+async function prompteRemoveEmployee() {
+    //get employees list
+    const _employees = await getEmployees();
+    const answers = await inquirer.prompt([
+        {
+            type: 'list',
+            name: 'employee',
+            message: 'Which employee would you like to remove?',
+            choices: _employees,
+        },
+        {
+        type: 'confirm',
+        name: 'confirm',
+        message: 'Are you sure you want to remove this employee?',
+        default: false,
+        }
+    ]);
+    if (answers.confirm) {
+        return new Promise((resolve, reject) => {
+            const sql = "delete from employees where id = ?";
+            const params = [answers.employee];
+            db.query(sql, params, (err, result) => {
+                if (err) {
+                    console.error(err);
+                    reject(err);
+                } else {
+                    console.log("Employee removed successfully!");
+                    resolve(result);
+                    MainMenu();
+                }
+            });
+        });
+    } else {
+        MainMenu();
+    }
+};
+
+async function prompteUpdateEmployeeRole() {
+    //get employees list
+    const _employees = await getEmployees();
+    //get roles list
+    const _roles = await getRoles();
+    const answers = await inquirer.prompt([
+        {
+            type: 'list',
+            name: 'employee',
+            message: 'Which employee would you like to update?',
+            choices: _employees,
+        },
+        {
+            type: 'list',
+            name: 'role',
+            message: 'What is the employee\'s new role?',
+            choices: _roles,
+        }
+    ]);
+    return new Promise((resolve, reject) => {
+        const sql = "update employees set role_id = ? where id = ?";
+        const params = [answers.role, answers.employee];
+        db.query(sql, params, (err, result) => {
+            if (err) {
+                console.error(err);
+                reject(err);
+            } else {
+                console.log("Employee role updated successfully!");
+                resolve(result);
+                MainMenu();
+            }
+        });
+    });
+
+}
+
+async function prompteUpdateEmployeeManager() {
+    //get employees list
+    const _employees = await getEmployees();
+    const answers = await inquirer.prompt([
+        {
+            type: 'list',
+            name: 'employee',
+            message: 'Which employee would you like to update?',
+            choices: _employees,
+        },
+        {
+            type: 'list',
+            name: 'manager',
+            message: 'Who is this employees new manager?',
+            choices: _employees,
+        }
+    ]);
+    return new Promise((resolve, reject) => {
+        const sql = "update employees set manager_id = ? where id = ?";
+        const params = [answers.manager, answers.employee];
+        db.query(sql, params, (err, result) => {
+            if (err) {
+                console.error(err);
+                reject(err);
+            } else {
+                console.log("Employee manager updated successfully!");
+                resolve(result);
+                MainMenu();
+            }
+        });
+    });
+}
+
+async function viewRoles() {
+    var sql =  "select roles.id as ID, roles.role_title as Role, roles.salary as Salary, departments.department_name as Department_Name from roles join departments on roles.id = departments.id order by id asc";
+    var params = "";
+    db.query(sql, params, (err, result) => {
+        if (err) {
+            console.log(err);
+        }
+            showLogo();
+            showHeader("View all Roles");
+            console.log(" ID  | Role Title         | Salary  | Department");
+            startData();
+            for(var i = 0; i < result.length; i++) {
+                var id = result[i].ID.toString().padEnd(5);
+                var roleid = result[i].Role.padEnd(20);
+                var salary = result[i].Salary.toString().padEnd(10);
+                var department = result[i].Department_Name.padEnd(20);
+                var stringData = `${id} ${roleid} ${salary} ${department}`;
+                showData(stringData);
+            }
+            endData();
+            MainMenu();
+        });
+}
+
+async function promptAddRole() {
+    //First get departments list
+    const _departments = await getDepartments();
+    const answers = await inquirer.prompt([
+        {
+            type: 'input',
+            name: 'roleTitle',
+            message: 'What is the role title?',
+        },
+        {
+            type: 'input',
+            name: 'salary',
+            message: 'What is the salary for this role?',
+        },
+        {
+            type: 'list',
+            name: 'department',
+            message: 'What department does the role belong to?',
+            choices: _departments,
+        }
+    ]);
+    return new Promise((resolve, reject) => {
+        const sql = "insert into roles (role_title, salary, department_id) values (?, ?, ?)";
+        const params = [answers.roleTitle, answers.salary, answers.department];
+        db.query(sql, params, (err, result) => {
+            if (err) {
+                console.error(err);
+                reject(err);
+            } else {
+                console.log("Role added successfully!");
+                resolve(result);
+                MainMenu();
+            }
+        });
+    });
+
+}
+
+async function promptRemoveRole() {
+    //get roles list
+    const _roles = await getRoles();
+    const answers = await inquirer.prompt([
+        {
+            type: 'list',
+            name: 'role',
+            message: 'Which role would you like to remove?',
+            choices: _roles,
+        },
+        {
+        type: 'confirm',
+        name: 'confirm',
+        message: 'Are you sure you want to remove this role?',
+        default: false,
+        }
+    ]);
+    if (answers.confirm) {
+        return new Promise((resolve, reject) => {
+            const sql = "delete from roles where id = ?";
+            const params = [answers.role];
+            db.query(sql, params, (err, result) => {
+                if (err) {
+                    console.error(err);
+                    reject(err);
+                } else {
+                    console.log("Role removed successfully!");
+                    resolve(result);
+                    MainMenu();
+                }
+            });
+        });
+    } else {
+        MainMenu();
+    }
+}
+
+async function viewDepartments() {
+    var sql =  "select * from departments order by id asc";
+    var params = "";
+    db.query(sql, params, (err, result) => {
+        if (err) {
+            console.log(err);
+        }
+            showLogo();
+            showHeader("View all Departments");
+            console.log(" ID  | Department Name");
+            startData();
+            for(var i = 0; i < result.length; i++) {
+                var id = result[i].id.toString().padEnd(5);
+                var department = result[i].department_name.padEnd(20);
+                var stringData = `${id} ${department}`;
+                showData(stringData);
+            }
+            endData();
+            MainMenu();
+        });
+
+}
+
+async function promptAddDepartment() {
+    const answers = await inquirer.prompt([
+        {
+            type: 'input',
+            name: 'departmentName',
+            message: 'What is the department name?',
+        }
+    ]);
+    return new Promise((resolve, reject) => {
+        const sql = "insert into departments (department_name) values (?)";
+        const params = [answers.departmentName];
+        db.query(sql, params, (err, result) => {
+            if (err) {
+                console.error(err);
+                reject(err);
+            } else {
+                console.log("Department added successfully!");
+                resolve(result);
+                MainMenu();
+            }
+        });
+    });
+}
+
+async function promptRemoveDepartment() {
+    //get departments list
+    const _departments = await getDepartments();
+    const answers = await inquirer.prompt([
+        {
+            type: 'list',
+            name: 'department',
+            message: 'Which department would you like to remove?',
+            choices: _departments,
+        },
+        {
+        type: 'confirm',
+        name: 'confirm',
+        message: 'Are you sure you want to remove this department?',
+        default: false,
+        }
+    ]);
+    if (answers.confirm) {
+        return new Promise((resolve, reject) => {
+            const sql = "delete from departments where id = ?";
+            const params = [answers.department];
+            db.query(sql, params, (err, result) => {
+                if (err) {
+                    console.error(err);
+                    reject(err);
+                } else {
+                    console.log("Department removed successfully!");
+                    resolve(result);
+                    MainMenu();
+                }
+            });
+        });
+    } else {
+        MainMenu();
+    }
+}
+
 
 
 showLogo();
